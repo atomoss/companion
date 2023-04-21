@@ -85,6 +85,7 @@ var _companion_directory = process.env.COMPANION_DIR;
 var v4l2camera = require("v4l2camera");
 // This holds all of the cameras/settings detected at start, and that are currently in use, we need to update this every time we modify the camera setttings
 var _cameras = []
+var _cameras_format = []
 
 
 //This holds the current frame size, frame rate, video device, and video format
@@ -150,15 +151,25 @@ for (var i = 0; ;i++) {
 		});
 		
 		var has_h264 = false;
+		var has_raw  = false;
 		cam.formats.forEach(function(format) {
 			if (format.formatName == "H264") {
 				has_h264 = true;
+			}
+			else if(format.formatName == "YUYV"){
+				has_raw  = true;
 			}
 		});
 		
 		if (has_h264) {
 			_cameras.push(cam);
+			_cameras_format.push("H264");
 		}
+		else if(has_raw){
+			_cameras.push(cam);
+			_cameras_format.push("YUYV");
+		}
+		
 	} catch(err) { // this is thrown once /dev/video<i> does not exist, we have enumerated all of the cameras
 		old_cameras.forEach(function(oldcam) { // Configure cameras to match last known/used settings
 			_cameras.forEach(function(cam) {
@@ -792,10 +803,14 @@ function updateCPUStats () {
 }
 
 function getCpuStatus(callback) {
-	var cmd = child_process.exec('vcgencmd get_throttled', function (error, stdout, stderr) {
-		logger.log("Got CPU Status: ", error, stdout, stderr);
-		callback(stdout);
-	});
+	try{
+		var cmd = child_process.exec('vcgencmd get_throttled', function (error, stdout, stderr) {
+			logger.log("Got CPU Status: ", error, stdout, stderr);
+			callback(stdout);
+		});
+	}catch(err) {
+			logger.log("error got CPU Status");
+		}
 }
 
 function getDiskStatus(callback) {
@@ -807,11 +822,15 @@ function getDiskStatus(callback) {
 }
 
 function getSoCTemperature(callback) {
-	child_process.exec("vcgencmd measure_temp", function (error, stdout, stderr) {
-		logger.log("Got SoC Temperature: ", error, stdout, stderr);
-		var data = stdout.split("=")[1];
-		callback(data);
-	})
+	try{
+		child_process.exec("vcgencmd measure_temp", function (error, stdout, stderr) {
+			logger.log("Got SoC Temperature: ", error, stdout, stderr);
+			var data = stdout.split("=")[1];
+			callback(data);
+		})
+	}catch(err) {
+			logger.log("error got SoC Temperature");
+		}
 }
 
 // Make updateCPUStats() run once every 5 seconds (=os.loadavg() update rate)

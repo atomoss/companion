@@ -18,7 +18,7 @@ echo "start video with width $WIDTH height $HEIGHT framerate $FRAMERATE device $
 # Load Pi camera v4l2 driver
 if ! lsmod | grep -q bcm2835_v4l2; then
     echo "loading bcm2835 v4l2 module"
-    sudo modprobe bcm2835-v4l2
+    #sudo modprobe bcm2835-v4l2
 fi
 
 # check if this device is H264 capable before streaming

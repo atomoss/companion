@@ -442,6 +442,15 @@
 				}
 				formatSelect.appendChild(option);
 			}
+			else if (formats[format].formatName == "YUYV") { // h264 only for now
+				var option = document.createElement("option");
+				option.innerHTML = formats[format].formatName;
+				option.value = format;
+				if (formats[format].formatName == _activeFormat.format) {
+					option.selected = true;
+				}
+				formatSelect.appendChild(option);
+			}
 		}
 		
 		formatSelected();
@@ -493,7 +502,7 @@
 				<h3 class="panel-title">Streaming Settings</h3>
 			</div>
 			<div class="panel-body">
-					<h4>Active Camera:
+					<h4>Active Camera :
 						<select id="v4l2 camera select"></select>
 					</h4>
 					<h4>Format:
