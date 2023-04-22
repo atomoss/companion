@@ -5,6 +5,7 @@ const child_process = require('child_process');
 const dgram = require('dgram');
 const SocketIOFile = require('socket.io-file');
 var logger = require('tracer').console();
+
 var os = require("os");
 var home_dir = process.env.HOME
 var httpProxy = require('http-proxy');
@@ -85,8 +86,6 @@ var _companion_directory = process.env.COMPANION_DIR;
 var v4l2camera = require("v4l2camera");
 // This holds all of the cameras/settings detected at start, and that are currently in use, we need to update this every time we modify the camera setttings
 var _cameras = []
-var _cameras_format = []
-
 
 //This holds the current frame size, frame rate, video device, and video format
 //These settings are passed to the video streaming application, and are used by
@@ -98,7 +97,7 @@ try {
 	var file_path = home_dir+"/vidformat.param";
 	var file_data = fs.readFileSync(file_path).toString();
 	var fields = file_data.split("\n");
-	_activeFormat = { "frameSize": fields[0] + "x" + fields[1], "frameRate": fields[2], "device": fields[3], "format": "H264" }
+	_activeFormat = { "frameSize": fields[0] + "x" + fields[1], "frameRate": fields[2], "device": fields[3], "format": fields[4] }
 } catch (err) {
 	logger.log("error loading video format from file", err);
 }
@@ -150,24 +149,22 @@ for (var i = 0; ;i++) {
 			}
 		});
 		
-		var has_h264 = false;
-		var has_raw  = false;
+		var has_h264  = false;
+		var has_yuyv  = false;
 		cam.formats.forEach(function(format) {
 			if (format.formatName == "H264") {
 				has_h264 = true;
 			}
 			else if(format.formatName == "YUYV"){
-				has_raw  = true;
+				has_yuyv  = true;
 			}
 		});
 		
 		if (has_h264) {
 			_cameras.push(cam);
-			_cameras_format.push("H264");
 		}
-		else if(has_raw){
+		else if(has_yuyv){
 			_cameras.push(cam);
-			_cameras_format.push("YUYV");
 		}
 		
 	} catch(err) { // this is thrown once /dev/video<i> does not exist, we have enumerated all of the cameras
@@ -857,7 +854,7 @@ io.on('connection', function(socket) {
 			var file_data = fs.readFileSync(file_path).toString();
 			var fields = file_data.split("\n");
 			
-			_activeFormat = { "frameSize": fields[0] + "x" + fields[1], "frameRate": fields[2], "device": fields[3], "format": "H264" }
+			_activeFormat = { "frameSize": fields[0] + "x" + fields[1], "frameRate": fields[2], "device": fields[3], "format": fields[4] }
 						
 			socket.emit('v4l2 cameras', {
 				"cameras": _cameras,
@@ -929,7 +926,7 @@ io.on('connection', function(socket) {
 			var file_data = fs.readFileSync(file_path).toString();
 			var fields = file_data.split("\n");
 	
-			var profile = { "width": fields[0], "height" : fields[1], "frameRate": fields[2], "device": fields[3], "format": "H264", "controls": {} }
+			var profile = { "width": fields[0], "height" : fields[1], "frameRate": fields[2], "device": fields[3], "format": fields[4], "controls": {} }
 			
 			// Load v4l2 controls to use in this profile
 			_cameras.forEach(function(camera) {
@@ -1061,9 +1058,9 @@ io.on('connection', function(socket) {
 				}
 			})
 			
-			logger.log(_companion_directory + '/scripts/restart_video.sh' + ' ' + profile.width + ' ' + profile.height + ' ' + profile.frameRate + ' ' + profile.device);
+			logger.log(_companion_directory + '/scripts/restart_video.sh' + ' ' + profile.width + ' ' + profile.height + ' ' + profile.frameRate + ' ' + profile.device + ' ' + profile.format);
 			
-			var cmd = child_process.spawn(_companion_directory + '/scripts/restart_video.sh', [profile.width, profile.height, profile.frameRate, profile.device], {
+			var cmd = child_process.spawn(_companion_directory + '/scripts/restart_video.sh', [profile.width, profile.height, profile.frameRate, profile.device, profile.format], {
 				detached: true
 			});
 			
@@ -1133,7 +1130,7 @@ io.on('connection', function(socket) {
 					var file_data = fs.readFileSync(file_path).toString();
 					var fields = file_data.split("\n");
 					
-					_activeFormat = { "frameSize": fields[0] + "x" + fields[1], "frameRate": fields[2], "device": fields[3], "format": "H264" }
+					_activeFormat = { "frameSize": fields[0] + "x" + fields[1], "frameRate": fields[2], "device": fields[3], "format": fields[4] }
 					
 					logger.log("updating frontend", _activeFormat);
 					socket.emit('v4l2 cameras', {
@@ -1179,11 +1176,11 @@ io.on('connection', function(socket) {
 				}
 			})
 			
-			_activeFormat = { "frameSize": data.width + "x" + data.height, "frameRate": data.interval.denominator, "device": data.id, "format": "H264" }
+			_activeFormat = { "frameSize": data.width + "x" + data.height, "frameRate": data.interval.denominator, "device": data.id, "format": data.format }
 			
-			logger.log(_companion_directory + '/scripts/restart_video.sh' + ' ' + data.width + ' ' + data.height + ' ' + data.interval.denominator + ' ' + data.id);
+			logger.log(_companion_directory + '/scripts/restart_video.sh' + ' ' + data.width + ' ' + data.height + ' ' + data.interval.denominator + ' ' + data.id + ' ' + data.format);
 			
-			var cmd = child_process.spawn(_companion_directory + '/scripts/restart_video.sh', [data.width, data.height, data.interval.denominator, data.id], {
+			var cmd = child_process.spawn(_companion_directory + '/scripts/restart_video.sh', [data.width, data.height, data.interval.denominator, data.id, data.format], {
 				detached: true
 			});
 			
